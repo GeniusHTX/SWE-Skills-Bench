@@ -1,0 +1,16 @@
+# 核心忽略名单：防止扫描大型编译产物和二进制数据
+node_modules/
+build/
+dist/
+*.pth
+*.pt
+*.bin
+*.o
+*.cu
+*.so
+*.a
+*.pyc
+__pycache__/
+.git/
+.ipynb_checkpoints/
+*.log

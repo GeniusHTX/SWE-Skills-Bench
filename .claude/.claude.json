@@ -1,0 +1,42 @@
+{
+  "numStartups": 0,
+  "customApiKeyResponses": {
+    "approved": [],
+    "rejected": []
+  },
+  "tipsHistory": {},
+  "cachedGrowthBookFeatures": {},
+  "hasCompletedOnboarding": true,
+  "hasAcceptedBypassPermissionsDisclaimer": false,
+  "lastOnboardingVersion": null,
+  "projects": {
+    "/workspace": {
+      "hasTrustDialogAccepted": true,
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [],
+      "lastCost": 0,
+      "lastAPIDuration": 0,
+      "lastAPIDurationWithoutRetries": 0,
+      "lastToolDuration": 0,
+      "lastDuration": 0,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 0,
+      "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 0,
+      "lastFpsLow1Pct": 0,
+      "lastModelUsage": {}
+    }
+  },
+  "clientDataCache": { "data": null, "timestamp": 0 }
+}

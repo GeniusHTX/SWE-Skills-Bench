@@ -1,0 +1,14 @@
+# Agent Skills Benchmark Dependencies
+
+# Core
+pyyaml>=6.0
+docker>=7.0.0
+python-dotenv>=1.0.0
+
+# API Clients
+# openai>=1.0.0
+# anthropic>=0.18.0
+
+# Utilities
+click>=8.1.0
+rich>=13.0.0
