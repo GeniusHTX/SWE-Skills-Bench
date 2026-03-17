@@ -1,8 +1,8 @@
 <p align="center">
-  <strong>SWE-Skills-Bench</strong>
+  <strong># SWE-Skills-Bench</strong>
 </p>
 
-<p align="center">A reproducible benchmark framework for testing whether Agent Skills improve performance on real software engineering tasks.</p>
+<p align="center">The official repo for our paper, "SWE-Skills-Bench: Do Agent Skills Actually Help in Real-World Software Engineering".</p>
 
 <p align="center">
   <strong><a href="README_CN.md">中文</a></strong>
