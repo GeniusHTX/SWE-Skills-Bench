@@ -12,6 +12,8 @@ global:
   log_level: "INFO"
   # Task file directory setting
   tasks_dir: "tasks"  # Task descriptions directory (must contain <skill_id>.md)
+  # Local evaluation test directory setting
+  tests_dir: "tests"  # Local test files copied into the container during eval
   # Network mode: "none" for full isolation, "bridge" to allow network access
   # Note: environment setup may require bridge to install git and clone repositories
   # Later stages (build/test) can use none for isolation

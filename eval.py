@@ -217,6 +217,7 @@ async def _run_evaluation(
         repo_url = repo_config.get("url", "")
         global_config = config_data.get("global", {})
         workspace_dir = global_config.get("workspace_dir", "/workspace")
+        tests_dir = global_config.get("tests_dir", "tests")
 
         # Extract repository name from URL
         if repo_url:
@@ -233,6 +234,7 @@ async def _run_evaluation(
         await _copy_local_test_files(
             docker_manager=docker_manager,
             skill_config=skill_config,
+            tests_dir=tests_dir,
             log_func=_log,
         )
 
@@ -311,9 +313,28 @@ async def _run_evaluation(
 
 
 async def _copy_local_test_files(
-    docker_manager: DockerManager, skill_config: dict, log_func
+    docker_manager: DockerManager, skill_config: dict, tests_dir: str, log_func
 ):
     """Copy local test files to an isolated directory in the container."""
+    repo_root = Path(__file__).parent.resolve()
+    normalized_tests_dir = Path(tests_dir.replace("/", os.sep))
+
+    def resolve_local_test_path(test_file_path: str) -> str:
+        workspace_tests_prefix = "/workspace/tests/"
+        workspace_prefix = "/workspace/"
+
+        if test_file_path.startswith(workspace_tests_prefix):
+            relative_test_path = test_file_path[len(workspace_tests_prefix) :].replace(
+                "/", os.sep
+            )
+            return str(repo_root / normalized_tests_dir / relative_test_path)
+
+        if test_file_path.startswith(workspace_prefix):
+            relative_path = test_file_path[len(workspace_prefix) :].replace("/", os.sep)
+            return str(repo_root / relative_path)
+
+        return str(repo_root / test_file_path.replace("/", os.sep))
+
     evaluation_configs = skill_config.get("evaluation", [])
     if not evaluation_configs:
         evaluation_configs = skill_config.get("environment", {}).get("evaluation", [])
@@ -321,6 +342,7 @@ async def _copy_local_test_files(
     log_func(
         f"_copy_local_test_files: Found {len(evaluation_configs)} evaluation configs"
     )
+    log_func(f"Using local tests directory: {normalized_tests_dir}")
 
     for eval_config in evaluation_configs:
         if eval_config.get("method") == "unit_test":
@@ -336,9 +358,7 @@ async def _copy_local_test_files(
             if match:
                 test_file_path = match.group(1)
                 # Convert to local path
-                local_test_path = test_file_path.replace("/workspace/", "").replace(
-                    "/", os.sep
-                )
+                local_test_path = resolve_local_test_path(test_file_path)
 
                 log_func(
                     f"Checking local test file: {local_test_path} (exists: {os.path.exists(local_test_path)})"
@@ -374,7 +394,9 @@ async def _copy_local_test_files(
                     log_func(f"Test file copied successfully: {test_file_name}")
 
                     # Copy dependency utils (shared modules required by other test files)
-                    dep_utils_local = os.path.join("tests", "_dependency_utils.py")
+                    dep_utils_local = str(
+                        repo_root / normalized_tests_dir / "_dependency_utils.py"
+                    )
                     if os.path.exists(dep_utils_local):
                         dep_utils_container = (
                             f"{container_test_dir}/_dependency_utils.py"
