@@ -32,24 +32,6 @@ wheels/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
 # Environments
 .env
 .venv
@@ -63,6 +45,7 @@ venv.bak/
 .vscode/
 .trae/
 .idea/
+.claude/settings.local.json
 *.swp
 *.swo
 *~
@@ -75,9 +58,6 @@ Thumbs.db
 reports/
 *.log
 /tmp/
-
-# Ignore local Claude state file (sensitive runtime metadata)
-.claude/settings.user.json
 
 # Docker
 .docker/
