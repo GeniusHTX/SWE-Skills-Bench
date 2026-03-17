@@ -1,4 +1,4 @@
-# SWE-Skills-Bench
+# <h1 align="center">SWE-Skills-Bench</h1>
 
 <p align="center">The official repo for our paper, "SWE-Skills-Bench: Do Agent Skills Actually Help in Real-World Software Engineering".</p>
 
