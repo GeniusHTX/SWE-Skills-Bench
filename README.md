@@ -1,9 +1,9 @@
 # SWE-Skills-Bench
 
-<p align="center">A benchmark dataset for evaluating whether injected skill documents improve agent performance on real-world software engineering tasks.</p>
+<p align="left">A benchmark dataset for evaluating whether injected skill documents improve agent performance on real-world software engineering tasks.</p>
 
 
-<p align="center">
+<p align="left">
   <a href="https://www.python.org/">
     <img alt="Python" src="https://img.shields.io/badge/Python-3.8%2B-3776AB">
   </a>
