@@ -2,9 +2,6 @@
 
 <p align="center">A benchmark dataset for evaluating whether injected skill documents improve agent performance on real-world software engineering tasks.</p>
 
-<p align="center">
-  <strong><a href="README_CN.md">中文</a></strong>
-</p>
 
 <p align="center">
   <a href="https://www.python.org/">
