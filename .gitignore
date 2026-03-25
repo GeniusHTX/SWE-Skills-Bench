@@ -1,0 +1,9 @@
+# Environments
+.env
+
+# IDE
+.vscode/
+
+
+# Project specific
+reports/
