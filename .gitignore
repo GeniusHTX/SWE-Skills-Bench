@@ -1,9 +1,11 @@
 # Environments
 .env
+__pycache__/
 
 # IDE
 .vscode/
 
 
 # Project specific
-reports/
+reports
+claude_process
