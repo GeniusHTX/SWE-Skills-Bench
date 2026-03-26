@@ -1,12 +1,16 @@
 """
 Remove Docker containers for the specified skill.
 
+Container names are derived from ANTHROPIC_DEFAULT_SONNET_MODEL (env) and
+the active batch set in config global.active_batch.
+
 Usage:
     python scripts/clean_container.py -s <skill-id>
     python scripts/clean_container.py -s <skill-id> --no-use-skill
     python scripts/clean_container.py -s <skill-id> --no-use-agent
-    python scripts/clean_container.py --container-name <name>   # specify container name directly
-    python scripts/clean_container.py --all                     # clean all benchmark containers
+    python scripts/clean_container.py -s <skill-id> -c path/to/config.yaml
+    python scripts/clean_container.py --all                     # clean containers for ALL batches
+    python scripts/clean_container.py --all -c path/to/config.yaml
 """
 
 import sys
@@ -19,7 +23,12 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.orchestrator import DockerManager
-from src.utils import generate_container_name, load_yaml_config, get_model_name
+from src.utils import (
+    generate_container_name,
+    load_yaml_config,
+    get_model_name,
+    get_active_batch,
+)
 
 load_dotenv()
 
@@ -72,33 +81,42 @@ def clean(
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         click.echo(f"[{ts}] {level}: {msg}")
 
-    # Collect all container names to clean
+    # Always load config for model name and batch info
+    try:
+        config_data = load_yaml_config(config)
+    except Exception as e:
+        log(f"Failed to load config file: {e}", level="ERROR")
+        sys.exit(1)
+
+    _model_name = get_model_name()
+    all_batches = [str(b) for b in config_data.get("global", {}).get("batches", [])]
+    active_batch = get_active_batch(config_data)
+
     targets: list[str] = []
 
     if clean_all:
-        try:
-            config_data = load_yaml_config(config)
-        except Exception as e:
-            log(f"Failed to load config file: {e}", level="ERROR")
-            sys.exit(1)
-
+        batches_to_clean = all_batches if all_batches else [active_batch]
         skills = config_data.get("skills", [])
-        _model_name = get_model_name()
-        for s in skills:
-            sid = s.get("id")
-            if sid:
-                # Generate all four combinations (use-skill/use-agent)
-                for usk in (True, False):
-                    for uag in (True, False):
-                        targets.append(
-                            generate_container_name(
-                                sid, usk, uag, model_name=_model_name
+        for batch_name in batches_to_clean:
+            for s in skills:
+                sid = s.get("id")
+                if sid:
+                    # Generate all four combinations (use-skill/use-agent)
+                    for usk in (True, False):
+                        for uag in (True, False):
+                            targets.append(
+                                generate_container_name(
+                                    sid,
+                                    usk,
+                                    uag,
+                                    model_name=_model_name,
+                                    batch=batch_name,
+                                )
                             )
-                        )
     elif skill:
         targets.append(
             generate_container_name(
-                skill, use_skill, use_agent, model_name=get_model_name()
+                skill, use_skill, use_agent, model_name=_model_name, batch=active_batch
             )
         )
     else:

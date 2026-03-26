@@ -8,24 +8,29 @@ from typing import Optional, Tuple
 
 
 def generate_container_name(
-    skill_id: str, use_skill: bool, use_agent: bool, model_name: Optional[str] = None
+    skill_id: str,
+    use_skill: bool,
+    use_agent: bool,
+    model_name: Optional[str] = None,
+    batch: Optional[str] = None,
 ) -> str:
     """
     Generate a standardized container name.
 
     Container naming format:
-        benchmark_{skill_id}_use-skill-{true|false}_use-agent-{true|false}[_{model_name}]
+        benchmark[_{batch}]_{skill_id}_use-skill-{true|false}_use-agent-{true|false}[_{model_name}]
 
     Args:
         skill_id: Skill ID
         use_skill: Whether to use the skill file
         use_agent: Whether to use the agent
         model_name: Optional model name suffix for multi-model evaluation
+        batch: Optional batch prefix (e.g. "batch1") placed at the front
 
     Returns:
         str: Container name
     """
-    # Strip illegal characters from skill_id (keep only letters, digits, dots, underscores, hyphens)
+    # Strip illegal characters (keep only letters, digits, dots, underscores, hyphens)
     safe_skill = re.sub(r"[^A-Za-z0-9._-]+", "-", skill_id)
     if not safe_skill:
         safe_skill = "skill"
@@ -33,9 +38,12 @@ def generate_container_name(
     use_skill_flag = "true" if use_skill else "false"
     use_agent_flag = "true" if use_agent else "false"
 
-    name = (
-        f"benchmark_{safe_skill}_use-skill-{use_skill_flag}_use-agent-{use_agent_flag}"
-    )
+    safe_batch = re.sub(r"[^A-Za-z0-9._-]+", "-", batch) if batch else None
+
+    if safe_batch:
+        name = f"benchmark_{safe_batch}_{safe_skill}_use-skill-{use_skill_flag}_use-agent-{use_agent_flag}"
+    else:
+        name = f"benchmark_{safe_skill}_use-skill-{use_skill_flag}_use-agent-{use_agent_flag}"
 
     if model_name:
         safe_model = re.sub(r"[^A-Za-z0-9._-]+", "-", model_name)
@@ -58,8 +66,8 @@ def parse_container_name(container_name: str) -> Tuple[str, bool, bool]:
     Raises:
         ValueError: If the container name format is invalid
     """
-    # model_name suffix is optional (appended after use-agent flag)
-    pattern = r"^benchmark_(.+)_use-skill-(true|false)_use-agent-(true|false)(?:_.+)?$"
+    # batch prefix (batchN_) and model_name suffix are both optional
+    pattern = r"^benchmark_(?:batch\d+_)?(.+)_use-skill-(true|false)_use-agent-(true|false)(?:_.+)?$"
     match = re.match(pattern, container_name)
 
     if not match:

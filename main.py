@@ -22,6 +22,7 @@ from src.utils import (
     get_timestamp,
     generate_report_filename,
     get_model_name,
+    get_active_batch,
 )
 
 # Load environment variables
@@ -77,9 +78,17 @@ def run(
 ):
     """Run a benchmark task"""
 
-    # Determine output directory (model-aware when not explicitly specified)
+    # Load configuration early — batch info is needed to compute output directory
+    try:
+        config_data = load_yaml_config(config)
+    except Exception as e:
+        click.echo(f"Failed to load config: {e}", err=True)
+        sys.exit(1)
+
+    # Determine output directory (model- and batch-aware)
+    batch = get_active_batch(config_data)
     if output is None:
-        output = os.path.join("reports", get_model_name(), "interactive")
+        output = os.path.join("reports", get_model_name(), batch, "interactive")
 
     # Generate safe skill filename and timestamp for log file naming
     timestamp = get_timestamp()
@@ -100,14 +109,8 @@ def run(
     logger = get_logger(__name__)
 
     logger.info(f"Starting benchmark for skill: {skill}")
-
-    # Load configuration
-    try:
-        config_data = load_yaml_config(config)
-        logger.info(f"Loaded configuration from: {config}")
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")
-        sys.exit(1)
+    logger.info(f"Loaded configuration from: {config}")
+    logger.info(f"Active batch: {batch}")
 
     # Validate skill exists
     skills = config_data.get("skills", [])

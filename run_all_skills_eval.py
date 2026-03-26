@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """
-Reads the skill list from config/benchmark_config.yaml and runs each skill
-via `python eval.py -s <skill-id> --use-skill`.
+Batch evaluation script: runs eval.py for each skill across all configured batches.
+
+Iterates over global.batches in the config file, writes a temporary config
+per batch (with active_batch overridden), and invokes eval.py for each skill.
+Logs are stored per model/batch under reports/.
 
 Usage:
-  python run_all_skills_eval.py           # run all skills
-  python run_all_skills_eval.py --dry-run # only show commands to execute
-  python run_all_skills_eval.py --skip a,b # skip a and b
-  python run_all_skills_eval.py --only a,b # run only a and b
+  python run_all_skills_eval.py                      # run all skills in all batches
+  python run_all_skills_eval.py --dry-run            # only show commands to execute
+  python run_all_skills_eval.py --skip a,b           # skip a and b
+  python run_all_skills_eval.py --only a,b           # run only a and b
+  python run_all_skills_eval.py --config path/to/cfg # use a custom config file
+  python run_all_skills_eval.py --no-use-skill       # disable skill injection
+  python run_all_skills_eval.py --no-use-agent       # disable agent mode
 """
 
 import argparse
@@ -39,26 +45,43 @@ def _get_model_name() -> str:
 class EvalBatchRunner:
     def __init__(self, config_path: str = "config/benchmark_config.yaml"):
         self.config_path = Path(config_path)
-        model_name = _get_model_name()
-        self.reports_dir = Path("reports") / model_name
-        self.reports_dir.mkdir(parents=True, exist_ok=True)
-        self.log_file = (
-            self.reports_dir
-            / f"run_all_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        )
+        self.model_name = _get_model_name()
+        # Per-batch state — initialized by _setup_batch_dirs inside run_all_for_batch
+        self.log_file: Optional[Path] = None
 
-    def load_skills(self) -> List[str]:
+    def _load_config(self) -> dict:
+        """Load and return the benchmark YAML config."""
         if not self.config_path.exists():
             print(f"Config file not found: {self.config_path}")
             sys.exit(1)
-
         with open(self.config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f)
+            return yaml.safe_load(f)
 
-        skills = cfg.get("skills", [])
-        ids = [s.get("id") for s in skills if s.get("id")]
-        print(f"Loaded {len(ids)} skill(s) from config")
-        return ids
+    def _get_batches(self, config: dict) -> List[str]:
+        """Return the list of batch names from config global.batches."""
+        return [str(b) for b in config.get("global", {}).get("batches", [])]
+
+    def _setup_batch_dirs(self, batch_name: str):
+        """Create per-batch report/log directory and set log_file."""
+        reports_dir = Path("reports") / self.model_name / batch_name
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = reports_dir / f"run_all_eval_{ts}.log"
+
+    def _write_temp_config(self, config: dict, batch_name: str) -> Path:
+        """Write a temporary YAML config with active_batch overridden to batch_name."""
+        import copy
+
+        cfg = copy.deepcopy(config)
+        cfg.setdefault("global", {})["active_batch"] = batch_name
+        tmp_path = Path(f"_tmp_eval_config_{batch_name}.yaml")
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False)
+        return tmp_path
+
+    def load_skills(self, config: dict) -> List[str]:
+        """Return all skill IDs from an already-loaded config dict."""
+        return [s.get("id") for s in config.get("skills", []) if s.get("id")]
 
     def log(self, msg: str):
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -70,11 +93,12 @@ class EvalBatchRunner:
     def run_skill(
         self,
         skill_id: str,
+        config_file: Path,
         dry_run: bool = False,
         use_skill: bool = True,
         use_agent: bool = True,
     ) -> bool:
-        cmd = [sys.executable, "eval.py", "-s", skill_id]
+        cmd = [sys.executable, "eval.py", "-s", skill_id, "--config", str(config_file)]
 
         # use-skill / no-use-skill
         cmd.append("--use-skill" if use_skill else "--no-use-skill")
@@ -105,6 +129,69 @@ class EvalBatchRunner:
             self.log(f"\u2717 {skill_id} exception: {e}")
             return False
 
+    def run_all_for_batch(
+        self,
+        batch_name: str,
+        config: dict,
+        all_skills: List[str],
+        skip: Optional[List[str]] = None,
+        only: Optional[List[str]] = None,
+        dry_run: bool = False,
+        use_skill: bool = True,
+        use_agent: bool = True,
+    ):
+        """Run evaluation for all skills in a single batch."""
+        self._setup_batch_dirs(batch_name)
+        tmp_config = self._write_temp_config(config, batch_name)
+
+        try:
+            to_run = list(all_skills)
+            if only:
+                to_run = [s for s in to_run if s in only]
+                self.log(
+                    f"[{batch_name}] Running only {len(to_run)} specified skill(s)"
+                )
+            if skip:
+                to_run = [s for s in to_run if s not in skip]
+                self.log(f"[{batch_name}] Skipping {len(skip)} skill(s)")
+
+            if not to_run:
+                self.log(f"[{batch_name}] No skills to evaluate")
+                return
+
+            total = len(to_run)
+            succ = 0
+            fail = 0
+
+            self.log(f"{'=' * 60}")
+            self.log(f"[{batch_name}] Starting eval run of {total} skill(s)")
+            self.log(f"Log file: {self.log_file}")
+            self.log(f"{'=' * 60}")
+
+            for idx, sid in enumerate(to_run, 1):
+                self.log(f"\n[{idx}/{total}] [{batch_name}] Evaluating: {sid}")
+                ok = self.run_skill(
+                    sid,
+                    tmp_config,
+                    dry_run=dry_run,
+                    use_skill=use_skill,
+                    use_agent=use_agent,
+                )
+                if ok:
+                    succ += 1
+                else:
+                    fail += 1
+                self.log(f"Progress: {idx}/{total} (succeeded {succ}, failed {fail})")
+
+            self.log(f"\n{'=' * 60}")
+            self.log(
+                f"[{batch_name}] Done: total {total}, succeeded {succ}, failed {fail}"
+            )
+            self.log(f"{'=' * 60}")
+        finally:
+            if tmp_config.exists():
+                tmp_config.unlink()
+
     def run_all(
         self,
         skip: Optional[List[str]] = None,
@@ -113,41 +200,29 @@ class EvalBatchRunner:
         use_skill: bool = True,
         use_agent: bool = True,
     ):
-        all_ids = self.load_skills()
+        """Run evaluation across all configured batches."""
+        config = self._load_config()
+        batches = self._get_batches(config)
+        if not batches:
+            print("Error: no batches defined in config global.batches")
+            sys.exit(1)
 
-        if only:
-            to_run = [s for s in all_ids if s in only]
-            self.log(f"Running only {len(to_run)} skill(s): {', '.join(to_run)}")
-        else:
-            to_run = all_ids
+        all_skills = self.load_skills(config)
+        print(
+            f"Loaded {len(all_skills)} skill(s) across {len(batches)} batch(es): {batches}"
+        )
 
-        if skip:
-            to_run = [s for s in to_run if s not in skip]
-            self.log(f"Skipping {len(skip)} skill(s)")
-
-        if not to_run:
-            self.log("No skills to run")
-            return
-
-        total = len(to_run)
-        succ = 0
-        fail = 0
-
-        for idx, sid in enumerate(to_run, 1):
-            self.log(f"[{idx}/{total}] Starting: {sid}")
-            ok = self.run_skill(
-                sid,
+        for batch_name in batches:
+            self.run_all_for_batch(
+                batch_name=batch_name,
+                config=config,
+                all_skills=all_skills,
+                skip=skip,
+                only=only,
                 dry_run=dry_run,
                 use_skill=use_skill,
                 use_agent=use_agent,
             )
-            if ok:
-                succ += 1
-            else:
-                fail += 1
-            self.log(f"Progress: {idx}/{total} (succeeded {succ}, failed {fail})")
-
-        self.log(f"Done: total {total}, succeeded {succ}, failed {fail}")
 
 
 def main():

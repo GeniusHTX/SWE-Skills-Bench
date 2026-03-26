@@ -11,6 +11,9 @@ from .helpers import (
     hash_file,
     generate_report_filename,
     get_model_name,
+    get_active_batch,
+    get_resolved_tasks_dir,
+    get_resolved_tests_dir,
 )
 
 from .container_utils import (
@@ -28,4 +31,7 @@ __all__ = [
     "parse_container_name",
     "generate_report_filename",
     "get_model_name",
+    "get_active_batch",
+    "get_resolved_tasks_dir",
+    "get_resolved_tests_dir",
 ]

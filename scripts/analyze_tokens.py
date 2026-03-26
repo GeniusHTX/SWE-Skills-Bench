@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-Analyze token consumption from claude_process/claude_thinking/*.jsonl files.
+Analyze token consumption from claude_process/{model}/{batch}/claude_thinking/*.jsonl files.
 Outputs input token fields, output tokens, total tokens, and total duration
 for each skill (use-skill / no-use-skill).
+
+Usage:
+    python scripts/analyze_tokens.py
+    python scripts/analyze_tokens.py --config path/to/config.yaml
 
 Column order (13 columns):
   1  skill name
@@ -122,10 +126,37 @@ def fmt_d(s) -> str:
 
 
 def main():
+    import argparse
+    import yaml
+
+    parser = argparse.ArgumentParser(
+        description="Analyze token consumption from JSONL files"
+    )
+    parser.add_argument(
+        "--config", default="config/benchmark_config.yaml", help="Benchmark config file"
+    )
+    args = parser.parse_args()
+
+    # Derive model name and active batch from config
+    try:
+        with open(args.config, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception:
+        cfg = {}
+    raw = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    model_name = re.sub(r"[^A-Za-z0-9._-]+", "-", raw) or "unknown-model"
+    g = cfg.get("global", {})
+    batch = g.get("active_batch")
+    if not batch:
+        batches = g.get("batches", [])
+        batch = str(batches[0]) if batches else "batch1"
+    batch = str(batch)
+
     thinking_dir = (
         Path(__file__).resolve().parents[1]
         / "claude_process"
-        / _get_model_name()
+        / model_name
+        / batch
         / "claude_thinking"
     )
     if not thinking_dir.exists():
@@ -272,7 +303,8 @@ def main():
     reports_dir = (
         Path(__file__).resolve().parents[1]
         / "reports"
-        / _get_model_name()
+        / model_name
+        / batch
         / "token_and_duration"
     )
     reports_dir.mkdir(parents=True, exist_ok=True)

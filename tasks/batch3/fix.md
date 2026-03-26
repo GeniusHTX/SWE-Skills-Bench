@@ -30,11 +30,15 @@ The Upgradle application (https://github.com/michaelasper/upgradle) is a React-b
 - No new warnings should be introduced
 
 ### Expected Functionality
-
 - `yarn prettier --check .` exits with code 0 (all files formatted)
 - `yarn linc` exits with code 0 (all lint checks pass)
+
+- `npm run prettier -- --check .` exits with code 0 (all files formatted)
+- `npm run lint` exits with code 0 (all lint checks pass). Tests may accept a `linc` alias, but CI uses `npm run lint`.
 - The application still builds and renders correctly after fixes
 - No functional behavior changes — only formatting and lint fixes
+
+CI note: prefer installing dependencies with `npm ci` (or `npm install` as fallback) so `node_modules` contains devDependencies like `prettier`, `eslint`, and `vite` required for checks and builds.
 
 ## Acceptance Criteria
 

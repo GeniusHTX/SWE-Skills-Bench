@@ -165,7 +165,14 @@ class TestFix:
     @pytest.fixture(scope="class", autouse=True)
     def _try_yarn_install(self):
         """Attempt yarn install before running command tests."""
-        if not _npm_available():
+        if _npm_available():
+            try:
+                _run(["npm", "ci"], timeout=180)
+            except Exception:
+                try:
+                    _run(["npm", "install"], timeout=180)
+                except Exception:
+                    pass
             return
         # Don't fail if install fails - command tests will skip individually
         try:
@@ -178,7 +185,7 @@ class TestFix:
         nm = _path("node_modules")
         if not os.path.isdir(nm):
             pytest.skip("node_modules not found; run yarn install first")
-        result = _run(["yarn", "prettier", "--check", "."], timeout=120)
+        result = _run(["npm", "run", "prettier", "--", "--check", "."], timeout=120)
         assert (
             result.returncode == 0
         ), f"prettier --check failed:\nstdout: {result.stdout[:500]}\nstderr: {result.stderr[:500]}"
@@ -188,7 +195,7 @@ class TestFix:
         nm = _path("node_modules")
         if not os.path.isdir(nm):
             pytest.skip("node_modules not found; run yarn install first")
-        result = _run(["yarn", "linc"], timeout=120)
+        result = _run(["npm", "run", "lint"], timeout=120)
         assert (
             result.returncode == 0
         ), f"yarn linc failed:\nstdout: {result.stdout[:500]}\nstderr: {result.stderr[:500]}"
@@ -198,7 +205,7 @@ class TestFix:
         nm = _path("node_modules")
         if not os.path.isdir(nm):
             pytest.skip("node_modules not found; run yarn install first")
-        result = _run(["yarn", "build"], timeout=180)
+        result = _run(["npm", "run", "build"], timeout=180)
         assert (
             result.returncode == 0
         ), f"yarn build failed:\nstdout: {result.stdout[:500]}\nstderr: {result.stderr[:500]}"
@@ -214,7 +221,9 @@ class TestFix:
             tmp.write("const a=1\n")
             tmp_path = tmp.name
         try:
-            result = _run(["yarn", "prettier", "--check", tmp_path], timeout=30)
+            result = _run(
+                ["npm", "run", "prettier", "--", "--check", tmp_path], timeout=30
+            )
             assert (
                 result.returncode != 0
             ), "prettier --check must fail for unformatted code"
@@ -237,7 +246,9 @@ class TestFix:
             )
             tmp_path = tmp.name
         try:
-            result = _run(["yarn", "eslint", os.path.basename(tmp_path)], timeout=30)
+            result = _run(
+                ["npm", "run", "eslint", "--", os.path.basename(tmp_path)], timeout=30
+            )
             # ESLint should report an issue (no-undef)
             # Some configs may auto-fix, so just verify ESLint ran
             ran = result.returncode in (0, 1, 2)

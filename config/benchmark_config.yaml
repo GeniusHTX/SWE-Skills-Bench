@@ -10,10 +10,14 @@ global:
   golden_reference_dir: "/tmp/golden_reference"
   reports_dir: "./reports"
   log_level: "INFO"
-  # Task file directory setting
-  tasks_dir: "tasks/batch3"  # Task descriptions directory (must contain <skill_id>.md)
-  # Local evaluation test directory setting
-  tests_dir: "tests/batch3"  # Local test files copied into the container during eval
+  # Task file base directory; combined with active_batch at runtime → tasks/{active_batch}
+  tasks_dir: "tasks"
+  # Test file base directory; combined with active_batch at runtime → tests/{active_batch}
+  tests_dir: "tests"
+  # All available evaluation batches
+  batches: [batch1, batch2, batch3]
+  # Active batch for single-skill runs (run_all_skills.py overrides this per batch)
+  active_batch: "batch3"
   # Network mode: "none" for full isolation, "bridge" to allow network access
   # Note: environment setup may require bridge to install git and clone repositories
   # Later stages (build/test) can use none for isolation
@@ -34,7 +38,7 @@ skills:
     # Repository settings
     repo:
       url: null  # "https://github.com/pytorch/pytorch.git"  # Repo already present in the image; no need to clone
-      commit: null  
+      commit: # "3d7b5bf813d0a7a92179b1bb395ca4b069fa148d"  
       # Sparse checkout (optional)
       sparse_checkout: []
 
@@ -142,7 +146,7 @@ skills:
 
     repo:
       url: "https://github.com/tdd-starters/python"
-      commit: null
+      commit: "a1a2d04ae69bd50aba9dac2783737dfda8f048c9"
       sparse_checkout: []
 
     environment:
@@ -183,7 +187,7 @@ skills:
 
     repo:
       url: "https://github.com/babybuddy/babybuddy"
-      commit: null
+      commit: "b307200149ae92d0d95dfde82e320d5401148dcf"
       sparse_checkout: []
 
     environment:
@@ -224,7 +228,7 @@ skills:
 
     repo:
       url: "https://github.com/spring-projects/spring-petclinic"
-      commit: null
+      commit: "edf4db28affcc4741c79850a3d95bc3f177b5ff9"
       sparse_checkout: []
 
     environment:
@@ -273,7 +277,7 @@ skills:
 
     repo:
       url: "https://github.com/TryGhost/Ghost"
-      commit: null
+      commit: "56a3ec2fb2474025da9541c924b207db98737322"
       sparse_checkout: []
 
     environment:
@@ -314,7 +318,7 @@ skills:
 
     repo:
       url: "https://github.com/modelcontextprotocol/servers"
-      commit: null
+      commit: "f4244583a6af9425633e433a3eec000d23f4e011"
       sparse_checkout: []
 
     environment:
@@ -363,7 +367,7 @@ skills:
 
     repo:
       url: "https://github.com/encode/httpx"
-      commit: null
+      commit: "b5addb64f0161ff6bfe94c124ef76f6a1fba5254"
       sparse_checkout: []
 
     environment:
@@ -404,7 +408,7 @@ skills:
 
     repo:
       url: "https://github.com/ericgazoni/openpyxl"
-      commit: null
+      commit: "c55988e4904d4337ce4c35ab8b7dc305bca9de23"
       sparse_checkout: []
 
     environment:
@@ -445,7 +449,7 @@ skills:
 
     repo:
       url: "https://github.com/vercel/turbo"
-      commit: null
+      commit: "2e2f8c37bb705163831718aac69bc4c7ae1f7372"
       sparse_checkout: []
 
     environment:
@@ -494,7 +498,7 @@ skills:
 
     repo:
       url: "https://github.com/actions/starter-workflows"
-      commit: null
+      commit: "affda94109f2228d5a7f542a28d23272ae31e00b"
       sparse_checkout: []
 
     environment:
@@ -535,7 +539,7 @@ skills:
 
     repo:
       url: "https://github.com/metabase/metabase"
-      commit: null
+      commit: "d8bb291939a60c44d8ba6eb7bb132a5e0f271cf1"
       sparse_checkout: []
 
     environment:
@@ -576,7 +580,7 @@ skills:
 
     repo:
       url: "https://github.com/prometheus/prometheus"
-      commit: null
+      commit: "df61021436e3aa53917a76ae8a4599d2c7fe6097"
       sparse_checkout: []
 
     environment:
@@ -625,7 +629,7 @@ skills:
 
     repo:
       url: "https://github.com/mahmoud/boltons"
-      commit: null
+      commit: "207651ee6055aabd0d9cdeac2e00140cdc208d44"
       sparse_checkout: []
 
     environment:
@@ -666,7 +670,7 @@ skills:
 
     repo:
       url: "https://github.com/oven-sh/bun"
-      commit: null
+      commit: "2e610b1402f5cc17f11803b01b87cbc59f563fab"
       sparse_checkout: []
 
     environment:
@@ -720,7 +724,7 @@ skills:
 
     repo:
       url: "https://github.com/metabase/metabase"
-      commit: null
+      commit: "d8bb291939a60c44d8ba6eb7bb132a5e0f271cf1"
       sparse_checkout: []
 
     environment:
@@ -761,7 +765,7 @@ skills:
 
     repo:
       url: "https://github.com/metabase/metabase"
-      commit: null
+      commit: "d8bb291939a60c44d8ba6eb7bb132a5e0f271cf1"
       sparse_checkout: []
 
     environment:
@@ -802,7 +806,7 @@ skills:
 
     repo:
       url: "https://github.com/saleor/saleor"
-      commit: null
+      commit: "b6051eb07680de7b1f5609f4bee706b6ceb6de92"
       sparse_checkout: []
 
     environment:
@@ -843,7 +847,7 @@ skills:
 
     repo:
       url: "https://github.com/celery/celery"
-      commit: null
+      commit: "c38600d429eb0d457ce57ae4ec6b52fe9e40a28d"
       sparse_checkout: []
 
     environment:
@@ -884,7 +888,7 @@ skills:
 
     repo:
       url: "https://github.com/fastapi/fastapi"
-      commit: null
+      commit: "937d3075f9456dfcdfe2e1f6bc3b8b7b9a6c6cad"
       sparse_checkout: []
 
     environment:
@@ -926,7 +930,7 @@ skills:
 
     repo:
       url: "https://github.com/lballabio/QuantLib"
-      commit: null
+      commit: "d570a9170894671bfeac9e815977f7e26ad46c05"
       sparse_checkout: []
 
     environment:
@@ -975,7 +979,7 @@ skills:
 
     repo:
       url: "https://github.com/langchain-ai/langchain"
-      commit: null
+      commit: "5fd07f7f94645c4298cd917b586b7ba5e2b2ce43"
       sparse_checkout: []
 
     environment:
@@ -1016,7 +1020,7 @@ skills:
 
     repo:
       url: "https://github.com/quantopian/pyfolio"
-      commit: null
+      commit: "4b901f6d73aa02ceb6d04b7d83502e5c6f2e81aa"
       sparse_checkout: []
 
     environment:
@@ -1057,7 +1061,7 @@ skills:
 
     repo:
       url: "https://github.com/facebookresearch/faiss"
-      commit: null
+      commit: "0759009bd7ddf290170c930c70a722badd05aa7d"
       sparse_checkout: []
 
     environment:
@@ -1106,7 +1110,7 @@ skills:
 
     repo:
       url: "https://github.com/langchain-ai/langchain"
-      commit: null
+      commit: "5fd07f7f94645c4298cd917b586b7ba5e2b2ce43"
       sparse_checkout: []
 
     environment:
@@ -1147,7 +1151,7 @@ skills:
 
     repo:
       url: "https://github.com/apache/spark"
-      commit: null
+      commit: "932f9f70d2e6b5495c80a6cc53397aa1343d342b"
       sparse_checkout: []
 
     environment:
@@ -1196,7 +1200,7 @@ skills:
 
     repo:
       url: "https://github.com/milvus-io/milvus"
-      commit: null
+      commit: "4bec0269ee2a32c8df31d4c7d97cde4971e5ba14"
       sparse_checkout: []
 
     environment:
@@ -1245,7 +1249,7 @@ skills:
 
     repo:
       url: "https://github.com/stanford-crfm/helm"
-      commit: null
+      commit: "2fd9c305bf6bbcdcd0e86fb5069e185de29f0e41"
       sparse_checkout: []
 
     environment:
@@ -1286,7 +1290,7 @@ skills:
 
     repo:
       url: "https://github.com/getsentry/sentry"
-      commit: null
+      commit: "6cabd8cddd3bfb4657c19ef7119b3293f7866bce"
       sparse_checkout: []
 
     environment:
@@ -1327,7 +1331,7 @@ skills:
 
     repo:
       url: "https://github.com/pypa/packaging"
-      commit: null
+      commit: "5d3ab595f9e1d564e7c48a2253c96ac38444ae63"
       sparse_checkout: []
 
     environment:
@@ -1369,7 +1373,7 @@ skills:
 
     repo:
       url: "https://github.com/fluxcd/flux2"
-      commit: null
+      commit: "d9f51d047dbb2e3184539ca40740f7b6f808f8d7"
       sparse_checkout: []
 
     environment:
@@ -1418,7 +1422,7 @@ skills:
 
     repo:
       url: "https://github.com/linkerd/linkerd2"
-      commit: null
+      commit: "00344cfe03011638f2ad7b2012ccc0969a1f0486"
       sparse_checkout: []
 
     environment:
@@ -1467,7 +1471,7 @@ skills:
 
     repo:
       url: "https://github.com/github-changelog-generator/github-changelog-generator"
-      commit: null
+      commit: "5a0cbdb6860ffc449e838541faf3f24e10d75722"
       sparse_checkout: []
 
     environment:
@@ -1508,7 +1512,7 @@ skills:
 
     repo:
       url: "https://github.com/kubernetes-sigs/kustomize"
-      commit: null
+      commit: "29bf16c673061f95dedeb502f5700cedc9cfe1f8"
       sparse_checkout: []
 
     environment:
@@ -1557,7 +1561,7 @@ skills:
 
     repo:
       url: "https://github.com/nrwl/nx"
-      commit: null
+      commit: "b3cb4d826144ceadce28dda7f614fd357bc61fd0"
       sparse_checkout: []
 
     environment:
@@ -1606,7 +1610,7 @@ skills:
 
     repo:
       url: "https://github.com/bazelbuild/bazel"
-      commit: null
+      commit: "cca38cb9d3b46e92ea008eea8dfef701efdcbb6b"
       sparse_checkout: []
 
     environment:
@@ -1655,7 +1659,7 @@ skills:
 
     repo:
       url: "https://github.com/istio/istio"
-      commit: null
+      commit: "f9e2236290e696a1ffae4c6c4e41ec3253fafb1e"
       sparse_checkout: []
 
     environment:
@@ -1696,7 +1700,7 @@ skills:
 
     repo:
       url: "https://github.com/koalaman/shellcheck"
-      commit: null
+      commit: "cd41f794383b6159757575c9debbf198426b21aa"
       sparse_checkout: []
 
     environment:
@@ -1737,7 +1741,7 @@ skills:
 
     repo:
       url: "https://github.com/gitlabhq/gitlabhq"
-      commit: null
+      commit: "d91b0b33f4c63b5f4b7307059a9b70d9b82a7b41"
       sparse_checkout: []
 
     environment:
@@ -1778,7 +1782,7 @@ skills:
 
     repo:
       url: "https://github.com/PostHog/posthog"
-      commit: null
+      commit: "ded7ef313da2a3b04ff0af9e781619a30dae3517"
       sparse_checkout: []
 
     environment:
@@ -1819,7 +1823,7 @@ skills:
 
     repo:
       url: "https://github.com/open-telemetry/opentelemetry-python"
-      commit: null
+      commit: "742593b01f47cc47a8bc8d8f3057297258357192"
       sparse_checkout: []
 
     environment:
@@ -1860,7 +1864,7 @@ skills:
 
     repo:
       url: "https://github.com/open-telemetry/opentelemetry-collector"
-      commit: null
+      commit: "01ca8295bb51a66326354322b829b1e2cd2cf7aa"
       sparse_checkout: []
 
     environment:
@@ -1909,7 +1913,7 @@ skills:
 
     repo:
       url: "https://github.com/linkerd/linkerd2"
-      commit: null
+      commit: "00344cfe03011638f2ad7b2012ccc0969a1f0486"
       sparse_checkout: []
 
     environment:
@@ -1958,7 +1962,7 @@ skills:
 
     repo:
       url: "https://github.com/google/slo-generator"
-      commit: null
+      commit: "771848d6b7eeccfebb939042f5aa27463ee5d426"
       sparse_checkout: []
 
     environment:
@@ -1999,7 +2003,7 @@ skills:
 
     repo:
       url: "https://github.com/benfred/py-spy"
-      commit: null
+      commit: "5e14e32f8d43be38cf538cd104531494f508c6d4"
       sparse_checkout: []
 
     environment:
@@ -2048,7 +2052,7 @@ skills:
 
     repo:
       url: "https://github.com/grafana/grafana"
-      commit: null
+      commit: "311636cc570127168117962c2f4e258a09d5eb2b"
       sparse_checkout: []
 
     environment:
@@ -2097,7 +2101,7 @@ skills:
 
     repo:
       url: "https://github.com/dbt-labs/dbt-core"
-      commit: null
+      commit: "984005a5ea1f745ecc3238616deebe6d154894fc"
       sparse_checkout: []
 
     environment:
@@ -2138,7 +2142,7 @@ skills:
 
     repo:
       url: "https://github.com/langchain-ai/langchain"
-      commit: null
+      commit: "5fd07f7f94645c4298cd917b586b7ba5e2b2ce43"
       sparse_checkout: []
 
     environment:
@@ -2179,7 +2183,7 @@ skills:
 
     repo:
       url: "https://github.com/Dao-AILab/flash-attention"
-      commit: null
+      commit: "abd9943b66704f650ea1485a17126cd3817d1b1d"
       sparse_checkout: []
 
     environment:

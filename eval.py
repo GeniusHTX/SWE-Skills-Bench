@@ -26,6 +26,8 @@ from src.utils import (
     generate_report_filename,
     generate_container_name,
     get_model_name,
+    get_active_batch,
+    get_resolved_tests_dir,
 )
 
 # Load environment variables
@@ -70,9 +72,17 @@ def evaluate(
 ):
     """Run L1/L2/L3 evaluation on an existing container with or without skill injection, and generate a report."""
 
-    # Determine output directory (model-aware when not explicitly specified)
+    # Load configuration early — batch info is needed to compute output directory
+    try:
+        config_data = load_yaml_config(config)
+    except Exception as e:
+        click.echo(f"Failed to load config: {e}", err=True)
+        sys.exit(1)
+
+    # Determine output directory (model- and batch-aware)
+    batch = get_active_batch(config_data)
     if output is None:
-        output = os.path.join("reports", get_model_name(), "eval")
+        output = os.path.join("reports", get_model_name(), batch, "eval")
 
     # Generate timestamp and filename identifier
     timestamp = get_timestamp()
@@ -92,14 +102,8 @@ def evaluate(
     logger = get_logger(__name__)
 
     logger.info(f"Starting evaluation for skill: {skill}")
-
-    # Load configuration
-    try:
-        config_data = load_yaml_config(config)
-        logger.info(f"Loaded configuration from: {config}")
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")
-        sys.exit(1)
+    logger.info(f"Loaded configuration from: {config}")
+    logger.info(f"Active batch: {batch}")
 
     # Verify skill exists
     skills = config_data.get("skills", [])
@@ -118,7 +122,7 @@ def evaluate(
 
     # Build container name
     container_name = generate_container_name(
-        skill, use_skill, use_agent, model_name=get_model_name()
+        skill, use_skill, use_agent, model_name=get_model_name(), batch=batch
     )
     logger.info(f"Looking for container: {container_name}")
 
@@ -224,7 +228,7 @@ async def _run_evaluation(
         repo_url = repo_config.get("url", "")
         global_config = config_data.get("global", {})
         workspace_dir = global_config.get("workspace_dir", "/workspace")
-        tests_dir = global_config.get("tests_dir", "tests")
+        tests_dir = get_resolved_tests_dir(config_data)
 
         # Extract repository name from URL
         if repo_url:

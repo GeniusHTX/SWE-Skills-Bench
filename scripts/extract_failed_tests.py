@@ -1,6 +1,11 @@
 """
 Extract failed unit tests from eval_report_*.json files and generate
-comparison tables (CSV + JSON) under reports/failed_test/.
+comparison tables (CSV + JSON) under reports/{model}/{batch}/failed_test/.
+
+
+Usage:
+    python scripts/extract_failed_tests.py
+    python scripts/extract_failed_tests.py --config path/to/config.yaml
 
 Rules:
 - Only use the latest-timestamped file per (skill, use_skill) pair.
@@ -20,30 +25,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_model_name = (
-    re.sub(
-        r"[^A-Za-z0-9._-]+",
-        "-",
-        os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model"),
-    )
-    or "unknown-model"
-)
-
-EVAL_DIR = Path(__file__).parent.parent / "reports" / _model_name / "eval"
-OUTPUT_DIR = Path(__file__).parent.parent / "reports" / _model_name / "failed_test"
-
 # Match: eval_report_{skill}_use-agent-true_use-skill-{true|false}_{date}_{time}.json
 FILE_RE = re.compile(
     r"^eval_report_(?P<skill>.+?)_use-agent-true_use-skill-(?P<use_skill>true|false)_(?P<ts>\d{8}_\d{6})\.json$"
 )
 
 
-def collect_latest_files() -> dict[tuple[str, str], Path]:
+def collect_latest_files(eval_dir: Path) -> dict[tuple[str, str], Path]:
     """
     Return mapping of (skill, use_skill) -> Path of the latest JSON file.
     """
     latest: dict[tuple[str, str], tuple[str, Path]] = {}
-    for fpath in EVAL_DIR.glob("eval_report_*.json"):
+    for fpath in eval_dir.glob("eval_report_*.json"):
         m = FILE_RE.match(fpath.name)
         if not m:
             continue
@@ -171,16 +164,46 @@ def write_json(records: list[dict], output_path: Path) -> None:
 
 
 def main() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    import argparse
+    import yaml
 
-    file_map = collect_latest_files()
-    print(f"Found {len(file_map)} (skill, use_skill) pairs across {EVAL_DIR}")
+    parser = argparse.ArgumentParser(
+        description="Extract failed unit tests from eval reports"
+    )
+    parser.add_argument(
+        "--config", default="config/benchmark_config.yaml", help="Benchmark config file"
+    )
+    args = parser.parse_args()
+
+    # Derive model name and active batch from config
+    try:
+        with open(args.config, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception:
+        cfg = {}
+    raw = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    model_name = re.sub(r"[^A-Za-z0-9._-]+", "-", raw) or "unknown-model"
+    g = cfg.get("global", {})
+    batch = g.get("active_batch")
+    if not batch:
+        batches = g.get("batches", [])
+        batch = str(batches[0]) if batches else "batch1"
+    batch = str(batch)
+
+    eval_dir = Path(__file__).parent.parent / "reports" / model_name / batch / "eval"
+    output_dir = (
+        Path(__file__).parent.parent / "reports" / model_name / batch / "failed_test"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    file_map = collect_latest_files(eval_dir)
+    print(f"Found {len(file_map)} (skill, use_skill) pairs across {eval_dir}")
 
     records = build_records(file_map)
     print(f"Built {len(records)} skill records")
 
-    csv_path = OUTPUT_DIR / "failed_tests.csv"
-    json_path = OUTPUT_DIR / "failed_tests.json"
+    csv_path = output_dir / "failed_tests.csv"
+    json_path = output_dir / "failed_tests.json"
 
     write_csv(records, csv_path)
     write_json(records, json_path)

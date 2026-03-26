@@ -2,6 +2,10 @@
 compare_pass_rate.py
 Compare L2/unit_test pass rates between use-skill and no-use-skill, output delta.
 
+Report directory is derived automatically from ANTHROPIC_DEFAULT_SONNET_MODEL (env)
+and the active batch in config global.active_batch:
+    reports/{model}/{batch}/eval/
+
 Usage examples:
     # Single skill
     python scripts/compare_pass_rate.py -s add-malli-schemas
@@ -14,6 +18,7 @@ Usage examples:
 
     # Specify use-agent state (default: true)
     python scripts/compare_pass_rate.py --all --use-agent false
+
 
     # Output JSON
     python scripts/compare_pass_rate.py --all --format json
@@ -31,19 +36,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_model_name = (
-    re.sub(
-        r"[^A-Za-z0-9._-]+",
-        "-",
-        os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model"),
-    )
-    or "unknown-model"
-)
-
-REPORT_DIR_DEFAULT = f"reports/{_model_name}/eval"
 PATTERN = re.compile(
     r"^eval_report_(?P<skill>.+)_use-agent-(?P<ua>true|false)_use-skill-(?P<us>true|false)_(?P<ts>\d{8}_\d{6})\.json$"
 )
+
+
+def _get_run_config(config_path: str) -> tuple:
+    """Return (sanitized_model_name, active_batch) from the benchmark YAML config."""
+    try:
+        import yaml
+
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception:
+        cfg = {}
+    raw = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    model = re.sub(r"[^A-Za-z0-9._-]+", "-", raw) or "unknown-model"
+    g = cfg.get("global", {})
+    batch = g.get("active_batch")
+    if not batch:
+        batches = g.get("batches", [])
+        batch = str(batches[0]) if batches else "batch1"
+    return model, str(batch)
 
 
 def _extract_pass_rate(report_path: Path) -> dict:
@@ -131,6 +145,12 @@ def _fmt_delta(v) -> str:
 
 @click.command()
 @click.option(
+    "--config",
+    "-c",
+    default="config/benchmark_config.yaml",
+    help="Benchmark config file (used to derive model name and active batch)",
+)
+@click.option(
     "--skill",
     "-s",
     "skills",
@@ -156,17 +176,15 @@ def _fmt_delta(v) -> str:
 @click.option(
     "--report-dir",
     "-d",
-    default=REPORT_DIR_DEFAULT,
-    show_default=True,
-    help="Report source directory",
+    default=None,
+    help="Report source directory (default: reports/{model}/{batch}/eval)",
 )
 @click.option(
     "--output",
     "-o",
     "out_dir",
-    default=f"reports/{_model_name}/compare",
-    show_default=True,
-    help="Output directory for comparison results",
+    default=None,
+    help="Output directory for comparison results (default: reports/{model}/{batch}/compare)",
 )
 @click.option(
     "--format",
@@ -177,8 +195,14 @@ def _fmt_delta(v) -> str:
     show_default=True,
     help="Output format",
 )
-def main(skills, all_skills, use_agent, report_dir, out_dir, fmt):
+def main(config, skills, all_skills, use_agent, report_dir, out_dir, fmt):
     """Compare use-skill / no-use-skill L2/unit_test pass rates and output delta."""
+    model_name, batch = _get_run_config(config)
+    if report_dir is None:
+        report_dir = f"reports/{model_name}/{batch}/eval"
+    if out_dir is None:
+        out_dir = f"reports/{model_name}/{batch}/compare"
+
     dir_path = Path(report_dir)
     if not dir_path.exists():
         click.echo(f"[ERROR] Report directory not found: {dir_path}", err=True)

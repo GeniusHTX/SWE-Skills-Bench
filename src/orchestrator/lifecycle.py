@@ -14,7 +14,13 @@ from enum import Enum
 
 from .docker_manager import DockerManager, ContainerConfig, ExecutionResult
 from .logger import get_logger, log_section
-from ..utils import generate_container_name, generate_report_filename, get_model_name
+from ..utils import (
+    generate_container_name,
+    generate_report_filename,
+    get_model_name,
+    get_active_batch,
+    get_resolved_tasks_dir,
+)
 
 logger = get_logger(__name__)
 
@@ -104,6 +110,8 @@ class BenchmarkLifecycle:
         self.use_agent = bool(use_agent)
         # Controls whether to remove the container after completion (set via CLI --clean-container)
         self.clean_container = bool(clean_container)
+        # Active batch derived from config (global.active_batch or first in global.batches)
+        self.batch = get_active_batch(config)
         # Actual repository path inside the container (e.g. /workspace/upgradle)
         self.repo_dir: Optional[str] = None
 
@@ -145,7 +153,7 @@ class BenchmarkLifecycle:
         self._log(f"Validating task file for skill: {self.skill_id}")
 
         # Get task file path
-        tasks_dir = self.config.get("global", {}).get("tasks_dir", "tasks")
+        tasks_dir = get_resolved_tasks_dir(self.config)
         task_file_path = os.path.join(tasks_dir, f"{self.skill_id}.md")
 
         try:
@@ -269,6 +277,7 @@ To fix this issue:
                 self.use_skill,
                 self.use_agent,
                 model_name=get_model_name(),
+                batch=self.batch,
             ),
             working_dir=global_config.get("workspace_dir", "/workspace"),
             network_mode=global_config.get("network_mode", "none"),
@@ -732,6 +741,7 @@ To fix this issue:
         proxy_config["skill_id"] = self.skill_id
         proxy_config["use_skill"] = self.use_skill
         proxy_config["use_agent"] = self.use_agent
+        proxy_config["batch"] = self.batch
         proxy_config.setdefault("metadata", {})["skill_id"] = self.skill_id
         if self.repo_dir:
             # Use the actual repository directory rather than /workspace

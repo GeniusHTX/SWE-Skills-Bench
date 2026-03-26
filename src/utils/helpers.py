@@ -74,6 +74,54 @@ def get_model_name() -> str:
     return sanitized or "unknown-model"
 
 
+def get_active_batch(config: Dict[str, Any]) -> str:
+    """
+    Get the active batch name from config.
+
+    Reads global.active_batch; falls back to the first entry in global.batches.
+
+    Args:
+        config: Full configuration dictionary
+
+    Returns:
+        str: Active batch name (e.g. "batch1")
+    """
+    g = config.get("global", {})
+    active = g.get("active_batch")
+    if active:
+        return str(active)
+    batches = g.get("batches", [])
+    return str(batches[0]) if batches else "batch1"
+
+
+def get_resolved_tasks_dir(config: Dict[str, Any]) -> str:
+    """
+    Get the fully resolved tasks directory path (tasks_dir/active_batch).
+
+    Args:
+        config: Full configuration dictionary
+
+    Returns:
+        str: Resolved path, e.g. "tasks/batch3"
+    """
+    g = config.get("global", {})
+    return os.path.join(g.get("tasks_dir", "tasks"), get_active_batch(config))
+
+
+def get_resolved_tests_dir(config: Dict[str, Any]) -> str:
+    """
+    Get the fully resolved tests directory path (tests_dir/active_batch).
+
+    Args:
+        config: Full configuration dictionary
+
+    Returns:
+        str: Resolved path, e.g. "tests/batch3"
+    """
+    g = config.get("global", {})
+    return os.path.join(g.get("tests_dir", "tests"), get_active_batch(config))
+
+
 def _flag_to_str(flag: Optional[Any]) -> str:
     """Convert bool/str/None to normalized flag string."""
     if isinstance(flag, bool):

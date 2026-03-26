@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """
-Batch script to run all skills.
+Batch script to run all skills across all configured batches.
+
+Iterates over global.batches in the config file, writes a temporary config
+per batch (with active_batch overridden), and invokes main.py for each skill.
+Progress logs and resume state are stored per model/batch under reports/.
 
 Usage:
-    python run_all_skills.py                    # run all skills
-    python run_all_skills.py --skip skill1,skill2  # skip specified skills
-    python run_all_skills.py --only skill1,skill2  # run only specified skills
-    python run_all_skills.py --resume            # resume from last interruption
-    python run_all_skills.py --dry-run           # preview commands to run
+    python run_all_skills.py                          # run all skills in all batches
+    python run_all_skills.py --skip skill1,skill2     # skip specified skills
+    python run_all_skills.py --only skill1,skill2     # run only specified skills
+    python run_all_skills.py --resume                 # resume from last interruption (per batch)
+    python run_all_skills.py --dry-run                # preview commands to run
+    python run_all_skills.py --config path/to/cfg     # use a custom config file
+    python run_all_skills.py --no-use-skill           # disable skill injection
 """
 
 import argparse
@@ -36,30 +42,45 @@ class SkillRunner:
 
     def __init__(self, config_path: str = "config/benchmark_config.yaml"):
         self.config_path = Path(config_path)
-        model_name = _get_model_name()
-        reports_dir = Path("reports") / model_name
-        self.log_file = (
-            reports_dir / f"batch_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        )
-        self.completed_file = reports_dir / ".batch_run_completed.txt"
+        self.model_name = _get_model_name()
+        # Per-batch state — initialized by _setup_batch_dirs inside run_all_for_batch
+        self.log_file: Optional[Path] = None
+        self.completed_file: Optional[Path] = None
 
-        # Ensure reports directory exists
-        reports_dir.mkdir(parents=True, exist_ok=True)
-
-    def load_skills(self) -> List[str]:
-        """Load all skill IDs from the config file"""
+    def _load_config(self) -> dict:
+        """Load and return the benchmark YAML config."""
         if not self.config_path.exists():
             print(f"Error: config file not found: {self.config_path}")
             sys.exit(1)
-
         with open(self.config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+            return yaml.safe_load(f)
 
-        skills = config.get("skills", [])
-        skill_ids = [skill["id"] for skill in skills if "id" in skill]
+    def _get_batches(self, config: dict) -> List[str]:
+        """Return the list of batch names from config global.batches."""
+        return [str(b) for b in config.get("global", {}).get("batches", [])]
 
-        print(f"Loaded {len(skill_ids)} skill(s) from config")
-        return skill_ids
+    def _setup_batch_dirs(self, batch_name: str):
+        """Create per-batch report/log directory and set log_file/completed_file."""
+        reports_dir = Path("reports") / self.model_name / batch_name
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = reports_dir / f"batch_run_{ts}.log"
+        self.completed_file = reports_dir / ".batch_run_completed.txt"
+
+    def _write_temp_config(self, config: dict, batch_name: str) -> Path:
+        """Write a temporary YAML config with active_batch overridden to batch_name."""
+        import copy
+
+        cfg = copy.deepcopy(config)
+        cfg.setdefault("global", {})["active_batch"] = batch_name
+        tmp_path = Path(f"_tmp_config_{batch_name}.yaml")
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False)
+        return tmp_path
+
+    def load_skills(self, config: dict) -> List[str]:
+        """Return all skill IDs from an already-loaded config dict."""
+        return [s["id"] for s in config.get("skills", []) if "id" in s]
 
     def load_completed_skills(self) -> Set[str]:
         """Load completed skill IDs"""
@@ -84,19 +105,24 @@ class SkillRunner:
             f.write(log_message + "\n")
 
     def run_skill(
-        self, skill_id: str, dry_run: bool = False, use_skill: Optional[bool] = None
+        self,
+        skill_id: str,
+        config_file: Path,
+        dry_run: bool = False,
+        use_skill: Optional[bool] = None,
     ) -> bool:
         """
-        Run a single skill.
+        Run a single skill using the specified batch config file.
 
         Args:
             skill_id: skill ID
+            config_file: path to the per-batch temp config YAML
             dry_run: dry-run mode only
 
         Returns:
             bool: whether successful
         """
-        cmd = ["python", "main.py", "run", "-s", skill_id]
+        cmd = ["python", "main.py", "run", "-s", skill_id, "--config", str(config_file)]
         if use_skill is True:
             cmd.append("--use-skill")
         elif use_skill is False:
@@ -127,6 +153,89 @@ class SkillRunner:
             self.log(f"\u2717 {skill_id} exception: {e}")
             return False
 
+    def run_all_for_batch(
+        self,
+        batch_name: str,
+        config: dict,
+        all_skills: List[str],
+        skip_skills: Optional[List[str]] = None,
+        only_skills: Optional[List[str]] = None,
+        resume: bool = False,
+        dry_run: bool = False,
+        use_skill: Optional[bool] = None,
+    ):
+        """Run all skills for a single batch."""
+        self._setup_batch_dirs(batch_name)
+        tmp_config = self._write_temp_config(config, batch_name)
+
+        try:
+            skills_to_run = list(all_skills)
+            if only_skills:
+                skills_to_run = [s for s in skills_to_run if s in only_skills]
+                self.log(
+                    f"[{batch_name}] Running only {len(skills_to_run)} specified skill(s)"
+                )
+            if skip_skills:
+                skills_to_run = [s for s in skills_to_run if s not in skip_skills]
+                self.log(f"[{batch_name}] Skipping {len(skip_skills)} skill(s)")
+            if resume:
+                completed = self.load_completed_skills()
+                skills_to_run = [s for s in skills_to_run if s not in completed]
+                self.log(
+                    f"[{batch_name}] Resume: {len(completed)} completed, {len(skills_to_run)} remaining"
+                )
+
+            if not skills_to_run:
+                self.log(f"[{batch_name}] No skills to run")
+                return
+
+            total = len(skills_to_run)
+            success_count = 0
+            failed_count = 0
+            failed_skills: List[str] = []
+
+            self.log(f"{'=' * 60}")
+            self.log(f"[{batch_name}] Starting batch run of {total} skill(s)")
+            self.log(f"Log file: {self.log_file}")
+            self.log(f"{'=' * 60}")
+
+            try:
+                for idx, skill_id in enumerate(skills_to_run, 1):
+                    self.log(f"\n[{idx}/{total}] [{batch_name}] Running: {skill_id}")
+                    success = self.run_skill(skill_id, tmp_config, dry_run, use_skill)
+                    if success:
+                        success_count += 1
+                        if not dry_run:
+                            self.save_completed_skill(skill_id)
+                    else:
+                        failed_count += 1
+                        failed_skills.append(skill_id)
+                    self.log(
+                        f"Progress: {idx}/{total} (succeeded: {success_count}, failed: {failed_count})"
+                    )
+            except KeyboardInterrupt:
+                self.log(f"\n[{batch_name}] Interrupted by user")
+                self.log(f"Completed: {success_count}/{total}")
+                self.log(f"Use --resume to continue")
+                sys.exit(1)
+
+            self.log(f"\n{'=' * 60}")
+            self.log(f"[{batch_name}] Batch run complete")
+            self.log(
+                f"Total: {total}, succeeded: {success_count}, failed: {failed_count}"
+            )
+            if failed_skills:
+                self.log(f"\nFailed skills:")
+                for s in failed_skills:
+                    self.log(f"  - {s}")
+            self.log(f"{'=' * 60}")
+
+            if not dry_run and failed_count == 0 and self.completed_file.exists():
+                self.completed_file.unlink()
+        finally:
+            if tmp_config.exists():
+                tmp_config.unlink()
+
     def run_all(
         self,
         skip_skills: Optional[List[str]] = None,
@@ -135,93 +244,29 @@ class SkillRunner:
         dry_run: bool = False,
         use_skill: Optional[bool] = None,
     ):
-        """
-        Run all skills in batch.
-
-        Args:
-            skip_skills: list of skill IDs to skip
-            only_skills: run only these skill IDs
-            resume: resume from last interruption
-            dry_run: show commands only, do not execute
-        """
-        all_skills = self.load_skills()
-
-        # Apply filters
-        if only_skills:
-            skills_to_run = [s for s in all_skills if s in only_skills]
-            self.log(
-                f"Running only {len(skills_to_run)} specified skill(s): {', '.join(skills_to_run)}"
-            )
-        else:
-            skills_to_run = all_skills
-
-        if skip_skills:
-            skills_to_run = [s for s in skills_to_run if s not in skip_skills]
-            self.log(f"Skipping {len(skip_skills)} skill(s): {', '.join(skip_skills)}")
-
-        # Resume mode: skip completed skills
-        if resume:
-            completed = self.load_completed_skills()
-            skills_to_run = [s for s in skills_to_run if s not in completed]
-            self.log(
-                f"Resume mode: {len(completed)} completed, {len(skills_to_run)} remaining"
-            )
-
-        if not skills_to_run:
-            self.log("No skills to run")
-            return
-
-        # Run statistics
-        total = len(skills_to_run)
-        success_count = 0
-        failed_count = 0
-        failed_skills = []
-
-        self.log(f"{'=' * 60}")
-        self.log(f"Starting batch run of {total} skill(s)")
-        self.log(f"Log file: {self.log_file}")
-        self.log(f"{'=' * 60}")
-
-        try:
-            for idx, skill_id in enumerate(skills_to_run, 1):
-                self.log(f"\n[{idx}/{total}] Running: {skill_id}")
-
-                success = self.run_skill(skill_id, dry_run, use_skill)
-
-                if success:
-                    success_count += 1
-                    if not dry_run:
-                        self.save_completed_skill(skill_id)
-                else:
-                    failed_count += 1
-                    failed_skills.append(skill_id)
-
-                # Show progress
-                self.log(
-                    f"Progress: {idx}/{total} (succeeded: {success_count}, failed: {failed_count})"
-                )
-
-        except KeyboardInterrupt:
-            self.log(f"\nBatch run interrupted by user")
-            self.log(f"Completed: {success_count}/{total}")
-            self.log(f"Use --resume to continue")
+        """Run all skills across all configured batches."""
+        config = self._load_config()
+        batches = self._get_batches(config)
+        if not batches:
+            print("Error: no batches defined in config global.batches")
             sys.exit(1)
 
-        # Final summary
-        self.log(f"\n{'=' * 60}")
-        self.log(f"Batch run complete")
-        self.log(f"Total: {total}, succeeded: {success_count}, failed: {failed_count}")
+        all_skills = self.load_skills(config)
+        print(
+            f"Loaded {len(all_skills)} skill(s) across {len(batches)} batch(es): {batches}"
+        )
 
-        if failed_skills:
-            self.log(f"\nFailed skills:")
-            for skill_id in failed_skills:
-                self.log(f"  - {skill_id}")
-
-        self.log(f"{'=' * 60}")
-
-        # Clear completion record file if all succeeded
-        if not dry_run and failed_count == 0 and self.completed_file.exists():
-            self.completed_file.unlink()
+        for batch_name in batches:
+            self.run_all_for_batch(
+                batch_name=batch_name,
+                config=config,
+                all_skills=all_skills,
+                skip_skills=skip_skills,
+                only_skills=only_skills,
+                resume=resume,
+                dry_run=dry_run,
+                use_skill=use_skill,
+            )
 
 
 def main():
