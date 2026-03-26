@@ -20,14 +20,27 @@ Usage examples:
 """
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
 from datetime import datetime
 
 import click
+from dotenv import load_dotenv
 
-REPORT_DIR_DEFAULT = "reports/eval"
+load_dotenv()
+
+_model_name = (
+    re.sub(
+        r"[^A-Za-z0-9._-]+",
+        "-",
+        os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model"),
+    )
+    or "unknown-model"
+)
+
+REPORT_DIR_DEFAULT = f"reports/{_model_name}/eval"
 PATTERN = re.compile(
     r"^eval_report_(?P<skill>.+)_use-agent-(?P<ua>true|false)_use-skill-(?P<us>true|false)_(?P<ts>\d{8}_\d{6})\.json$"
 )
@@ -151,7 +164,7 @@ def _fmt_delta(v) -> str:
     "--output",
     "-o",
     "out_dir",
-    default="reports/compare",
+    default=f"reports/{_model_name}/compare",
     show_default=True,
     help="Output directory for comparison results",
 )

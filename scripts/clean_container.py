@@ -19,7 +19,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.orchestrator import DockerManager
-from src.utils import generate_container_name, load_yaml_config
+from src.utils import generate_container_name, load_yaml_config, get_model_name
 
 load_dotenv()
 
@@ -83,15 +83,24 @@ def clean(
             sys.exit(1)
 
         skills = config_data.get("skills", [])
+        _model_name = get_model_name()
         for s in skills:
             sid = s.get("id")
             if sid:
                 # Generate all four combinations (use-skill/use-agent)
                 for usk in (True, False):
                     for uag in (True, False):
-                        targets.append(generate_container_name(sid, usk, uag))
+                        targets.append(
+                            generate_container_name(
+                                sid, usk, uag, model_name=_model_name
+                            )
+                        )
     elif skill:
-        targets.append(generate_container_name(skill, use_skill, use_agent))
+        targets.append(
+            generate_container_name(
+                skill, use_skill, use_agent, model_name=get_model_name()
+            )
+        )
     else:
         log("Please specify --skill or --all", level="ERROR")
         sys.exit(1)

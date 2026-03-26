@@ -14,7 +14,7 @@ from enum import Enum
 
 from .docker_manager import DockerManager, ContainerConfig, ExecutionResult
 from .logger import get_logger, log_section
-from ..utils import generate_container_name, generate_report_filename
+from ..utils import generate_container_name, generate_report_filename, get_model_name
 
 logger = get_logger(__name__)
 
@@ -264,7 +264,12 @@ To fix this issue:
 
         container_config = ContainerConfig(
             image=env_config.get("base_image", "python:3.10"),
-            name=generate_container_name(self.skill_id, self.use_skill, self.use_agent),
+            name=generate_container_name(
+                self.skill_id,
+                self.use_skill,
+                self.use_agent,
+                model_name=get_model_name(),
+            ),
             working_dir=global_config.get("workspace_dir", "/workspace"),
             network_mode=global_config.get("network_mode", "none"),
             cpus=float(limits.get("cpus", 4)),

@@ -4,6 +4,7 @@ Provides various helper utilities.
 """
 
 import os
+import re
 import json
 import hashlib
 from pathlib import Path
@@ -58,6 +59,19 @@ def get_timestamp(format: str = "%Y%m%d_%H%M%S") -> str:
         str: Timestamp string
     """
     return datetime.now().strftime(format)
+
+
+def get_model_name() -> str:
+    """
+    Get the sanitized model name from the ANTHROPIC_DEFAULT_SONNET_MODEL environment variable.
+    Safe for use in file paths and Docker container names.
+
+    Returns:
+        str: Sanitized model name; falls back to "unknown-model" when not set
+    """
+    raw_name = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", raw_name)
+    return sanitized or "unknown-model"
 
 
 def _flag_to_str(flag: Optional[Any]) -> str:

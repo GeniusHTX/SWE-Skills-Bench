@@ -10,6 +10,7 @@ from .helpers import (
     ensure_dir,
     hash_file,
     generate_report_filename,
+    get_model_name,
 )
 
 from .container_utils import (
@@ -26,4 +27,5 @@ __all__ = [
     "generate_container_name",
     "parse_container_name",
     "generate_report_filename",
+    "get_model_name",
 ]

@@ -21,10 +21,21 @@ Column order (13 columns):
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _get_model_name() -> str:
+    """Get sanitized model name from ANTHROPIC_DEFAULT_SONNET_MODEL env var."""
+    raw = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", raw) or "unknown-model"
 
 
 # ─── File parsing ────────────────────────────────────────────────────────────────
@@ -112,7 +123,10 @@ def fmt_d(s) -> str:
 
 def main():
     thinking_dir = (
-        Path(__file__).resolve().parents[1] / "claude_process" / "claude_thinking"
+        Path(__file__).resolve().parents[1]
+        / "claude_process"
+        / _get_model_name()
+        / "claude_thinking"
     )
     if not thinking_dir.exists():
         print(f"❌ Directory not found: {thinking_dir}")
@@ -255,7 +269,12 @@ def main():
     text_lines.append("")
 
     # Write to reports directory
-    reports_dir = Path(__file__).resolve().parents[1] / "reports" / "token_and_duration"
+    reports_dir = (
+        Path(__file__).resolve().parents[1]
+        / "reports"
+        / _get_model_name()
+        / "token_and_duration"
+    )
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     # CSV

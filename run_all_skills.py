@@ -13,10 +13,22 @@ Usage:
 import argparse
 import subprocess
 import sys
+import os
+import re
 import yaml
 from pathlib import Path
 from datetime import datetime
 from typing import List, Set, Optional
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _get_model_name() -> str:
+    """Get sanitized model name from ANTHROPIC_DEFAULT_SONNET_MODEL env var."""
+    raw = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", raw) or "unknown-model"
 
 
 class SkillRunner:
@@ -24,14 +36,15 @@ class SkillRunner:
 
     def __init__(self, config_path: str = "config/benchmark_config.yaml"):
         self.config_path = Path(config_path)
+        model_name = _get_model_name()
+        reports_dir = Path("reports") / model_name
         self.log_file = (
-            Path("reports")
-            / f"batch_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            reports_dir / f"batch_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         )
-        self.completed_file = Path("reports") / ".batch_run_completed.txt"
+        self.completed_file = reports_dir / ".batch_run_completed.txt"
 
         # Ensure reports directory exists
-        self.log_file.parent.mkdir(exist_ok=True)
+        reports_dir.mkdir(parents=True, exist_ok=True)
 
     def load_skills(self) -> List[str]:
         """Load all skill IDs from the config file"""

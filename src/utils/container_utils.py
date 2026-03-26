@@ -4,19 +4,23 @@ Provides helper functionality for container naming and status queries.
 """
 
 import re
-from typing import Tuple
+from typing import Optional, Tuple
 
 
-def generate_container_name(skill_id: str, use_skill: bool, use_agent: bool) -> str:
+def generate_container_name(
+    skill_id: str, use_skill: bool, use_agent: bool, model_name: Optional[str] = None
+) -> str:
     """
     Generate a standardized container name.
 
-    Container naming format: benchmark_{skill_id}_use-skill-{true|false}_use-agent-{true|false}
+    Container naming format:
+        benchmark_{skill_id}_use-skill-{true|false}_use-agent-{true|false}[_{model_name}]
 
     Args:
         skill_id: Skill ID
         use_skill: Whether to use the skill file
         use_agent: Whether to use the agent
+        model_name: Optional model name suffix for multi-model evaluation
 
     Returns:
         str: Container name
@@ -29,9 +33,16 @@ def generate_container_name(skill_id: str, use_skill: bool, use_agent: bool) -> 
     use_skill_flag = "true" if use_skill else "false"
     use_agent_flag = "true" if use_agent else "false"
 
-    return (
+    name = (
         f"benchmark_{safe_skill}_use-skill-{use_skill_flag}_use-agent-{use_agent_flag}"
     )
+
+    if model_name:
+        safe_model = re.sub(r"[^A-Za-z0-9._-]+", "-", model_name)
+        if safe_model:
+            name = f"{name}_{safe_model}"
+
+    return name
 
 
 def parse_container_name(container_name: str) -> Tuple[str, bool, bool]:
@@ -47,7 +58,8 @@ def parse_container_name(container_name: str) -> Tuple[str, bool, bool]:
     Raises:
         ValueError: If the container name format is invalid
     """
-    pattern = r"^benchmark_(.+)_use-skill-(true|false)_use-agent-(true|false)$"
+    # model_name suffix is optional (appended after use-agent flag)
+    pattern = r"^benchmark_(.+)_use-skill-(true|false)_use-agent-(true|false)(?:_.+)?$"
     match = re.match(pattern, container_name)
 
     if not match:

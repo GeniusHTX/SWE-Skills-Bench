@@ -16,8 +16,21 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-EVAL_DIR = Path(__file__).parent.parent / "reports" / "eval"
-OUTPUT_DIR = Path(__file__).parent.parent / "reports" / "failed_test"
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_model_name = (
+    re.sub(
+        r"[^A-Za-z0-9._-]+",
+        "-",
+        os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model"),
+    )
+    or "unknown-model"
+)
+
+EVAL_DIR = Path(__file__).parent.parent / "reports" / _model_name / "eval"
+OUTPUT_DIR = Path(__file__).parent.parent / "reports" / _model_name / "failed_test"
 
 # Match: eval_report_{skill}_use-agent-true_use-skill-{true|false}_{date}_{time}.json
 FILE_RE = re.compile(

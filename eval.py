@@ -25,6 +25,7 @@ from src.utils import (
     get_timestamp,
     generate_report_filename,
     generate_container_name,
+    get_model_name,
 )
 
 # Load environment variables
@@ -36,7 +37,7 @@ load_dotenv()
 @click.option(
     "--config", "-c", default="config/benchmark_config.yaml", help="Config file path"
 )
-@click.option("--output", "-o", default="reports/eval", help="Report output directory")
+@click.option("--output", "-o", default=None, help="Report output directory")
 @click.option(
     "--log-level",
     default="INFO",
@@ -68,6 +69,10 @@ def evaluate(
     clean_container: bool,
 ):
     """Run L1/L2/L3 evaluation on an existing container with or without skill injection, and generate a report."""
+
+    # Determine output directory (model-aware when not explicitly specified)
+    if output is None:
+        output = os.path.join("reports", get_model_name(), "eval")
 
     # Generate timestamp and filename identifier
     timestamp = get_timestamp()
@@ -112,7 +117,9 @@ def evaluate(
     logger.info(f"Skill configuration loaded: {skill_config.get('name', skill)}")
 
     # Build container name
-    container_name = generate_container_name(skill, use_skill, use_agent)
+    container_name = generate_container_name(
+        skill, use_skill, use_agent, model_name=get_model_name()
+    )
     logger.info(f"Looking for container: {container_name}")
 
     # Run evaluation

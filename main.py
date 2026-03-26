@@ -21,6 +21,7 @@ from src.utils import (
     save_json_report,
     get_timestamp,
     generate_report_filename,
+    get_model_name,
 )
 
 # Load environment variables
@@ -39,9 +40,7 @@ def cli():
 @click.option(
     "--config", "-c", default="config/benchmark_config.yaml", help="Config file path"
 )
-@click.option(
-    "--output", "-o", default="reports/interactive", help="Report output directory"
-)
+@click.option("--output", "-o", default=None, help="Report output directory")
 @click.option(
     "--log-level",
     default="INFO",
@@ -77,6 +76,10 @@ def run(
     clean_container: bool,
 ):
     """Run a benchmark task"""
+
+    # Determine output directory (model-aware when not explicitly specified)
+    if output is None:
+        output = os.path.join("reports", get_model_name(), "interactive")
 
     # Generate safe skill filename and timestamp for log file naming
     timestamp = get_timestamp()

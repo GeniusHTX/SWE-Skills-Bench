@@ -13,6 +13,8 @@ Usage:
 import argparse
 import subprocess
 import sys
+import os
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
@@ -23,12 +25,23 @@ except Exception:
     print("Please install dependencies first: pip install pyyaml")
     raise
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _get_model_name() -> str:
+    """Get sanitized model name from ANTHROPIC_DEFAULT_SONNET_MODEL env var."""
+    raw = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "unknown-model")
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", raw) or "unknown-model"
+
 
 class EvalBatchRunner:
     def __init__(self, config_path: str = "config/benchmark_config.yaml"):
         self.config_path = Path(config_path)
-        self.reports_dir = Path("reports")
-        self.reports_dir.mkdir(exist_ok=True)
+        model_name = _get_model_name()
+        self.reports_dir = Path("reports") / model_name
+        self.reports_dir.mkdir(parents=True, exist_ok=True)
         self.log_file = (
             self.reports_dir
             / f"run_all_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"

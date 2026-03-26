@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from ..orchestrator.docker_manager import DockerManager
 from ..orchestrator.logger import get_logger
-from ..utils import generate_report_filename, get_timestamp
+from ..utils import generate_report_filename, get_timestamp, get_model_name
 
 logger = get_logger(__name__)
 
@@ -62,10 +62,11 @@ class ClaudeCodeProxy:
         self.runtime_root_dir = "/workspace"
 
         # Host-side log directory structure
-        # claude_process/
+        # claude_process/{model_name}/
         #   ├── claude_output/     # Redirected CLI output
         #   └── claude_thinking/   # Thinking JSON files from ~/.claude/projects/-workspace
-        self.process_base_dir = os.path.join(os.getcwd(), "claude_process")
+        _model_name = get_model_name()
+        self.process_base_dir = os.path.join(os.getcwd(), "claude_process", _model_name)
         self.output_log_dir = os.path.join(self.process_base_dir, "claude_output")
         self.thinking_json_dir = os.path.join(self.process_base_dir, "claude_thinking")
         os.makedirs(self.output_log_dir, exist_ok=True)
