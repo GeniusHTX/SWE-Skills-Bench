@@ -138,7 +138,7 @@ class ClaudeCodeProxy:
             "You MUST directly modify files in the repository under the workspace to implement the task.\n"
             "Do NOT output a design plan or ask clarifying questions.\n"
             "Write/update the necessary files (provide full file paths and contents).\n"
-            "If tests exist, run them and ensure they pass. Only output a concise summary of files changed and the final status.\n"
+            "Only output a concise summary of files changed and the final status.\n"
             "EndInstruction\n\n"
         )
 

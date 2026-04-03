@@ -15,9 +15,9 @@ global:
   # Test file base directory; combined with active_batch at runtime → tests/{active_batch}
   tests_dir: "tests"
   # All available evaluation batches
-  batches: [batch1, batch2, batch3]
+  batches: [batch1]
   # Active batch for single-skill runs (run_all_skills.py overrides this per batch)
-  active_batch: "batch3"
+  active_batch: "batch1"
   # Network mode: "none" for full isolation, "bridge" to allow network access
   # Note: environment setup may require bridge to install git and clone repositories
   # Later stages (build/test) can use none for isolation

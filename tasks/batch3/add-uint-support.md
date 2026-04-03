@@ -60,5 +60,4 @@ PyTorch (https://github.com/pytorch/pytorch) is a deep learning framework. Recen
 - Unsigned subtraction underflow wraps around per C++ unsigned semantics
 - Division by zero on unsigned types raises RuntimeError
 - Comparison operations return bool tensors for uint32 and uint64 inputs
-- `MAX_JOBS=4 USE_CUDA=0 python setup.py develop` builds successfully
 - Tests verify all operations for both uint32 and uint64 dtypes

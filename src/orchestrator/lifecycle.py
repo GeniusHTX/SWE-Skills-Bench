@@ -390,6 +390,73 @@ To fix this issue:
         except Exception as e:
             self._log(f"Failed to chown claude files: {e}")
 
+        # Copy local skills directory to ~/.claude/skills in the container (controlled by self.use_skill)
+        try:
+            if not getattr(self, "use_skill", False):
+                self._log(
+                    "Skipping copying local skills to container (use_skill flag is False)"
+                )
+            else:
+                local_skills_dir = os.path.join(os.getcwd(), "skills")
+                if os.path.exists(local_skills_dir) and os.path.isdir(local_skills_dir):
+                    self._log(
+                        f"Copying local skills from {local_skills_dir} to /home/dev/.claude/skills"
+                    )
+
+                    # assume /home/dev/.claude already exists in the container
+
+                    # Count copied files
+                    copied_count = 0
+                    failed_count = 0
+
+                    # Recursively copy each file (preserving directory structure)
+                    for root, dirs, files in os.walk(local_skills_dir):
+                        rel = os.path.relpath(root, local_skills_dir)
+                        if rel == ".":
+                            dest_dir = "/home/dev/.claude/skills"
+                        else:
+                            # Convert path separator to POSIX style (cross-platform)
+                            rel_posix = rel.replace(os.sep, "/")
+                            dest_dir = f"/home/dev/.claude/skills/{rel_posix}"
+
+                        # Create directory (silent)
+                        self.docker_manager.execute_command(
+                            f"mkdir -p {dest_dir}", user="root"
+                        )
+
+                        for fname in files:
+                            local_file = os.path.join(root, fname)
+                            container_path = f"{dest_dir}/{fname}"
+                            try:
+                                self.docker_manager.copy_to_container(
+                                    local_file, container_path
+                                )
+                                copied_count += 1
+                            except Exception as e:
+                                failed_count += 1
+                                self._log(
+                                    f"Failed to copy skill file {local_file}: {e}"
+                                )
+
+                    # Print copy summary
+                    self._log(
+                        f"Skills copy completed: {copied_count} files copied, {failed_count} failed"
+                    )
+
+                    # Set ownership to dev:dev
+                    chown_skills = self.docker_manager.execute_command(
+                        "chown -R dev:dev /home/dev/.claude/skills || true",
+                        timeout=30,
+                        user="root",
+                    )
+                    self._log(f"Chown skills exit_code={chown_skills.exit_code}")
+                else:
+                    self._log(
+                        f"No local skills directory at {local_skills_dir}; skipping skills copy"
+                    )
+        except Exception as e:
+            self._log(f"Error while copying skills to container: {e}")
+
     def _build_claude_settings_content(self) -> Optional[bytes]:
         """Build the Claude settings content to write into the container."""
         settings_path = self._claude_config_files.get("settings")
@@ -444,73 +511,6 @@ To fix this issue:
             else:
                 merged[key] = value
         return merged
-
-        # Copy local skills directory to ~/.claude/skills in the container (controlled by self.use_skill)
-        try:
-            if not getattr(self, "use_skill", False):
-                self._log(
-                    "Skipping copying local skills to container (use_skill flag is False)"
-                )
-            else:
-                local_skills_dir = os.path.join(os.getcwd(), "skills")
-                if os.path.exists(local_skills_dir) and os.path.isdir(local_skills_dir):
-                    self._log(
-                        f"Copying local skills from {local_skills_dir} to /home/dev/.claude/skills"
-                    )
-
-                    # assume /home/dev/.claude already exists in the container
-
-                    # Count copied files
-                    copied_count = 0
-                    failed_count = 0
-
-                    # Recursively copy each file (preserving directory structure)
-                    for root, dirs, files in os.walk(local_skills_dir):
-                        rel = os.path.relpath(root, local_skills_dir)
-                        if rel == ".":
-                            dest_dir = "/home/dev/.claude/skills"
-                        else:
-                            # Convert path separator to POSIX style (cross-platform)
-                            rel_posix = rel.replace(os.sep, "/")
-                            dest_dir = f"/home/dev/.claude/skills/{rel_posix}"
-
-                        # Create directory (silent)
-                        mkdir_res = self.docker_manager.execute_command(
-                            f"mkdir -p {dest_dir}", user="root"
-                        )
-
-                        for fname in files:
-                            local_file = os.path.join(root, fname)
-                            container_path = f"{dest_dir}/{fname}"
-                            try:
-                                self.docker_manager.copy_to_container(
-                                    local_file, container_path
-                                )
-                                copied_count += 1
-                            except Exception as e:
-                                failed_count += 1
-                                self._log(
-                                    f"Failed to copy skill file {local_file}: {e}"
-                                )
-
-                    # Print copy summary
-                    self._log(
-                        f"Skills copy completed: {copied_count} files copied, {failed_count} failed"
-                    )
-
-                    # Set ownership to dev:dev
-                    chown_skills = self.docker_manager.execute_command(
-                        "chown -R dev:dev /home/dev/.claude/skills || true",
-                        timeout=30,
-                        user="root",
-                    )
-                    self._log(f"Chown skills exit_code={chown_skills.exit_code}")
-                else:
-                    self._log(
-                        f"No local skills directory at {local_skills_dir}; skipping skills copy"
-                    )
-        except Exception as e:
-            self._log(f"Error while copying skills to container: {e}")
 
     async def _clone_repository(
         self, repo_url: str, commit: str, sparse_checkout: Optional[List[str]] = None

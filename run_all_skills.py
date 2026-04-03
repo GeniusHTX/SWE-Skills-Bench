@@ -73,6 +73,7 @@ class SkillRunner:
 
         cfg = copy.deepcopy(config)
         cfg.setdefault("global", {})["active_batch"] = batch_name
+        # TODO: modify the path to config directory
         tmp_path = Path(f"_tmp_config_{batch_name}.yaml")
         with open(tmp_path, "w", encoding="utf-8") as f:
             yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False)
