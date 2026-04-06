@@ -146,12 +146,10 @@ ANTHROPIC_BASE_URL=
 
 The framework runs the `claude` CLI inside each Docker container.
 
-To change the model, edit `.claude/settings.json` before running — the framework copies it into the container automatically:
+To change the model, edit `.env` before running — the framework copies it into the container automatically:
 
-```json
-{
-  "model": "claude-haiku-4-5-20251001"
-}
+```bash
+ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6
 ```
 
 #### Step 3: Validate the setup
